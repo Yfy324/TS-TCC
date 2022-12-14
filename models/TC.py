@@ -24,9 +24,9 @@ class TC(nn.Module):
         self.seq_transformer = Seq_Transformer(patch_size=self.num_channels, dim=configs.TC.hidden_dim, depth=4, heads=4, mlp_dim=64)
 
     def forward(self, features_aug1, features_aug2):
-        z_aug1 = features_aug1  # features are (batch_size, #channels, seq_len)
+        z_aug1 = features_aug1  # features are (batch_size, #channels, seq_len/178)
         seq_len = z_aug1.shape[2]
-        z_aug1 = z_aug1.transpose(1, 2)
+        z_aug1 = z_aug1.transpose(1, 2)   # batch, seq_leg, channel
 
         z_aug2 = features_aug2
         z_aug2 = z_aug2.transpose(1, 2)
@@ -38,17 +38,17 @@ class TC(nn.Module):
         encode_samples = torch.empty((self.timestep, batch, self.num_channels)).float().to(self.device)
 
         for i in np.arange(1, self.timestep + 1):
-            encode_samples[i - 1] = z_aug2[:, t_samples + i, :].view(batch, self.num_channels)
-        forward_seq = z_aug1[:, :t_samples + 1, :]
+            encode_samples[i - 1] = z_aug2[:, t_samples + i, :].view(batch, self.num_channels)  # t_sample+1开始取timestep个
+        forward_seq = z_aug1[:, :t_samples + 1, :]  # encode_sample/aug2 之前aug1时间步
 
-        c_t = self.seq_transformer(forward_seq)
+        c_t = self.seq_transformer(forward_seq)  # 根据aug1 预测context
 
         pred = torch.empty((self.timestep, batch, self.num_channels)).float().to(self.device)
         for i in np.arange(0, self.timestep):
             linear = self.Wk[i]
-            pred[i] = linear(c_t)
+            pred[i] = linear(c_t)  # 利用a
         for i in np.arange(0, self.timestep):
             total = torch.mm(encode_samples[i], torch.transpose(pred[i], 0, 1))
-            nce += torch.sum(torch.diag(self.lsoftmax(total)))
+            nce += torch.sum(torch.diag(self.lsoftmax(total)))  # nce的实现
         nce /= -1. * batch * self.timestep
         return nce, self.projection_head(c_t)

@@ -17,14 +17,14 @@ def Trainer(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, t
     logger.debug("Training started ....")
 
     criterion = nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optimizer, 'min')
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(model_optimizer, 'min')  # https://zhuanlan.zhihu.com/p/268413128
 
     for epoch in range(1, config.num_epoch + 1):
         # Train and validate
         train_loss, train_acc = model_train(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, criterion, train_dl, config, device, training_mode)
-        valid_loss, valid_acc, _, _ = model_evaluate(model, temporal_contr_model, valid_dl, device, training_mode)
+        valid_loss, valid_acc, _, _ = model_evaluate(model, temporal_contr_model, valid_dl, device, training_mode)  # 无监督训练，什么也不返回
         if training_mode != 'self_supervised':  # use scheduler in all other modes.
-            scheduler.step(valid_loss)
+            scheduler.step(valid_loss)   # 在监听loss_val,这个函数每调用一次都会监听一次这个loss
 
         logger.debug(f'\nEpoch : {epoch}\n'
                      f'Train Loss     : {train_loss:.4f}\t | \tTrain Accuracy     : {train_acc:2.4f}\n'
@@ -49,7 +49,7 @@ def model_train(model, temporal_contr_model, model_optimizer, temp_cont_optimize
     model.train()
     temporal_contr_model.train()
 
-    for batch_idx, (data, labels, aug1, aug2) in enumerate(train_loader):
+    for batch_idx, (data, labels, aug1, aug2) in enumerate(train_loader):   # 应该和__getitem__函数y
         # send to device
         data, labels = data.float().to(device), labels.long().to(device)
         aug1, aug2 = aug1.float().to(device), aug2.float().to(device)
@@ -132,8 +132,8 @@ def model_evaluate(model, temporal_contr_model, test_dl, device, training_mode):
 
             if training_mode != "self_supervised":
                 pred = predictions.max(1, keepdim=True)[1]  # get the index of the max log-probability
-                outs = np.append(outs, pred.cpu().numpy())
-                trgs = np.append(trgs, labels.data.cpu().numpy())
+                outs = np.append(outs, pred.cpu().numpy())  # 预测结果
+                trgs = np.append(trgs, labels.data.cpu().numpy())  # 真实labels
 
     if training_mode != "self_supervised":
         total_loss = torch.tensor(total_loss).mean()  # average loss

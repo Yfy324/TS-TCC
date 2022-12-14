@@ -24,7 +24,7 @@ parser.add_argument('--run_description', default='run1', type=str,
                     help='Experiment Description')
 parser.add_argument('--seed', default=0, type=int,
                     help='seed value')
-parser.add_argument('--training_mode', default='supervised', type=str,
+parser.add_argument('--training_mode', default='fine_tune', type=str,
                     help='Modes of choice: random_init, supervised, self_supervised, fine_tune, train_linear')
 parser.add_argument('--selected_dataset', default='Epilepsy', type=str,
                     help='Dataset of choice: sleepEDF, HAR, Epilepsy, pFD')
@@ -32,7 +32,7 @@ parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
                     help='saving directory')
 parser.add_argument('--device', default='cuda', type=str,
                     help='cpu or cuda')
-parser.add_argument('--home_path', default=home_dir, type=str,
+parser.add_argument('--home_path', default='/home/yfy/Desktop/project/AD/contrastive/TS-TCC/', type=str,
                     help='Project home directory')
 args = parser.parse_args()
 
@@ -78,13 +78,13 @@ logger.debug(f'Mode:    {training_mode}')
 logger.debug("=" * 45)
 
 # Load datasets
-data_path = f"./data/{data_type}"
-train_dl, valid_dl, test_dl = data_generator(data_path, configs, training_mode)
+data_path = f"/data/yfy/CV-data/{data_type}"
+train_dl, valid_dl, test_dl = data_generator(data_path, configs, training_mode)  # 构建dataloader
 logger.debug("Data loaded ...")
 
 # Load Model
-model = base_Model(configs).to(device)
-temporal_contr_model = TC(configs, device).to(device)
+model = base_Model(configs).to(device)  # 三个cov1 blocks + linear
+temporal_contr_model = TC(configs, device).to(device)  # 4个encoder + 1个c_token
 
 if training_mode == "fine_tune":
     # load saved model of this experiment
@@ -97,7 +97,7 @@ if training_mode == "fine_tune":
     for i in pretrained_dict_copy.keys():
         for j in del_list:
             if j in i:
-                del pretrained_dict[i]
+                del pretrained_dict[i]   # 删去base_model forward中最后的logits
     model_dict.update(pretrained_dict)
     model.load_state_dict(model_dict)
 

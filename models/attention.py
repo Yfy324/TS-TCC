@@ -54,10 +54,10 @@ class Attention(nn.Module):
 
     def forward(self, x, mask=None):
         b, n, _, h = *x.shape, self.heads
-        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        qkv = self.to_qkv(x).chunk(3, dim=-1)  # 根据输入得到q k v, 在给定维度分块
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), qkv)
 
-        dots = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
+        dots = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale  # q * k^T
 
         if mask is not None:
             mask = F.pad(mask.flatten(1), (1, 0), value=True)
@@ -69,7 +69,7 @@ class Attention(nn.Module):
         attn = dots.softmax(dim=-1)
 
         out = torch.einsum('bhij,bhjd->bhid', attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, 'b h n d -> b n (h d)')  # b,5,100 --> b,4,5,25
         out = self.to_out(out)
         return out
 
@@ -86,8 +86,8 @@ class Transformer(nn.Module):
 
     def forward(self, x, mask=None):
         for attn, ff in self.layers:
-            x = attn(x, mask=mask)
-            x = ff(x)
+            x = attn(x, mask=mask)  # attention，没有mask
+            x = ff(x)  # feedforward
         return x
 
 
@@ -97,15 +97,15 @@ class Seq_Transformer(nn.Module):
         patch_dim = channels * patch_size
         self.patch_to_embedding = nn.Linear(patch_dim, dim)
         self.c_token = nn.Parameter(torch.randn(1, 1, dim))
-        self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
-        self.to_c_token = nn.Identity()
+        self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)  # 堆叠4个encoder基础结构(att+feed)
+        self.to_c_token = nn.Identity()  # 占位符，输出为input
 
 
     def forward(self, forward_seq):
-        x = self.patch_to_embedding(forward_seq)
+        x = self.patch_to_embedding(forward_seq)  # base encoder的输出经过一个线性projector
         b, n, _ = x.shape
         c_tokens = repeat(self.c_token, '() n d -> b n d', b=b)
-        x = torch.cat((c_tokens, x), dim=1)
+        x = torch.cat((c_tokens, x), dim=1)  # token和x channel堆叠
         x = self.transformer(x)
         c_t = self.to_c_token(x[:, 0])
         return c_t

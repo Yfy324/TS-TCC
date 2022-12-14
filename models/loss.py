@@ -22,9 +22,9 @@ class NTXentLoss(torch.nn.Module):
 
     def _get_correlated_mask(self):
         diag = np.eye(2 * self.batch_size)
-        l1 = np.eye((2 * self.batch_size), 2 * self.batch_size, k=-self.batch_size)
-        l2 = np.eye((2 * self.batch_size), 2 * self.batch_size, k=self.batch_size)
-        mask = torch.from_numpy((diag + l1 + l2))
+        l1 = np.eye((2 * self.batch_size), 2 * self.batch_size, k=-self.batch_size)  # 左下对角线 (128,0) -- (255,127)
+        l2 = np.eye((2 * self.batch_size), 2 * self.batch_size, k=self.batch_size)  # k正，右上(0,128) -- (127, 255)
+        mask = torch.from_numpy((diag + l1 + l2))  # mask掉相同样本的similarity、positive(ij,ji) 两对的similarity
         mask = (1 - mask).type(torch.bool)
         return mask.to(self.device)
 
@@ -44,19 +44,19 @@ class NTXentLoss(torch.nn.Module):
         return v
 
     def forward(self, zis, zjs):
-        representations = torch.cat([zjs, zis], dim=0)
+        representations = torch.cat([zjs, zis], dim=0)  # feature2,feature1
 
         similarity_matrix = self.similarity_function(representations, representations)
 
         # filter out the scores from the positive samples
-        l_pos = torch.diag(similarity_matrix, self.batch_size)
-        r_pos = torch.diag(similarity_matrix, -self.batch_size)
+        l_pos = torch.diag(similarity_matrix, self.batch_size)  # 右上的positive pairs
+        r_pos = torch.diag(similarity_matrix, -self.batch_size)  # 左下
         positives = torch.cat([l_pos, r_pos]).view(2 * self.batch_size, 1)
 
-        negatives = similarity_matrix[self.mask_samples_from_same_repr].view(2 * self.batch_size, -1)
+        negatives = similarity_matrix[self.mask_samples_from_same_repr].view(2 * self.batch_size, -1)  # 2*b, 2*b-2
 
-        logits = torch.cat((positives, negatives), dim=1)
-        logits /= self.temperature
+        logits = torch.cat((positives, negatives), dim=1)  # mask掉了相同元素的similarity，positive(ji,ij)的similarity
+        logits /= self.temperature  # 一个样本/row [1positive, 254negative]
 
         labels = torch.zeros(2 * self.batch_size).to(self.device).long()
         loss = self.criterion(logits, labels)

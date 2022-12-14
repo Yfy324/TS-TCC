@@ -69,7 +69,7 @@ def _logger(logger_name, level=logging.DEBUG):
     #                 "%(lineno)d — %(message)s")
     format_string = "%(message)s"
     log_format = logging.Formatter(format_string)
-    # Creating and adding the console handler
+    # Creating and adding the console handler -- 控制台输出
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(log_format)
     logger.addHandler(console_handler)

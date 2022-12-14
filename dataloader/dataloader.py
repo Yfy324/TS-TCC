@@ -50,13 +50,13 @@ def data_generator(data_path, configs, training_mode):
 
     train_dataset = Load_Dataset(train_dataset, configs, training_mode)
     valid_dataset = Load_Dataset(valid_dataset, configs, training_mode)
-    test_dataset = Load_Dataset(test_dataset, configs, training_mode)
+    test_dataset = Load_Dataset(test_dataset, configs, training_mode)   # 也要weak、strong两次augmentation
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
                                                shuffle=True, drop_last=configs.drop_last,
                                                num_workers=0)
     valid_loader = torch.utils.data.DataLoader(dataset=valid_dataset, batch_size=configs.batch_size,
-                                               shuffle=False, drop_last=configs.drop_last,
+                                               shuffle=False, drop_last=configs.drop_last,  # drop_last：长度不够整除batch_size，丢弃
                                                num_workers=0)
 
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=configs.batch_size,
